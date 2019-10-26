@@ -32,7 +32,7 @@ from service.settings import SettingsProvider
 class ImportExistingFitDialog(wx.Dialog):
     actionOverwrite = 0
     actionAddPostfix = 1
-    actionSkip = 2
+    actionSkip = 1
 
     def __init__(self, parent):
         super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE)
@@ -46,6 +46,10 @@ class ImportExistingFitDialog(wx.Dialog):
         shipName = "Retribution"
         fitName = "Beam PVP"
         fitsNumber = 1
+        #todo generate the value in postfix field to make it unique
+        #todo check if the new name is unique
+        #todo add tooltips. Explain why overwrite is disabled
+        #todo on change the name check if it's a correct one
 
         self.mainFrame = parent
         mainSizer = wx.BoxSizer(wx.VERTICAL)
@@ -62,12 +66,14 @@ class ImportExistingFitDialog(wx.Dialog):
         if fitsNumber > 1:
             mainText = "There are {} for '{}' with the name '{}'".format(fitsNumber, shipName, fitName)
 
-        label = wx.StaticText(self, wx.ID_ANY, mainText, style=wx.ALIGN_CENTER)
-        mainSizer.Add(label, 0, wx.EXPAND | wx.ALL, 5)
+        label = wx.StaticText(self, wx.ID_ANY, mainText, style = wx.ALIGN_CENTER)
+        mainSizer.Add(label, 0, wx.EXPAND | wx.ALL, 10)
 
         initialized = False
+        radioSizer = wx.BoxSizer(wx.VERTICAL)
         for formatName, formatData in self.fitActions.items():
             formatId, formatOptions = formatData
+
             if not initialized:
                 rdo = wx.RadioButton(self, wx.ID_ANY, formatName, style=wx.RB_GROUP)
                 initialized = True
@@ -78,7 +84,20 @@ class ImportExistingFitDialog(wx.Dialog):
             if self.settings['format'] == formatId:
                 rdo.SetValue(True)
                 self.fitAction = formatId
-            mainSizer.Add(rdo, 0, wx.EXPAND | wx.ALL, 5)
+
+            radioSizer.Add(rdo, 0, wx.EXPAND | wx.ALL, 5)
+
+            # In case we have more that one fit - we can't use 'Overwrite' option
+            if fitsNumber > 1 and formatName == "Overwrite":
+                rdo.Hide()
+
+            if formatName == "Add postfix":
+                textSizer = wx.BoxSizer(wx.VERTICAL)
+                edit = wx.TextCtrl(self, wx.ID_ANY, "", wx.DefaultPosition, (150, -1))
+                textSizer.Add(edit, 0, wx.TOP | wx.BOTTOM, 3)
+                radioSizer.Add(textSizer, 0, wx.EXPAND | wx.LEFT, 20)
+
+        mainSizer.Add(radioSizer, 0, wx.EXPAND | wx.LEFT, 20)
 
         buttonSizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
         if buttonSizer:
