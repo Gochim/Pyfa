@@ -32,17 +32,12 @@ from service.settings import SettingsProvider
 class ImportExistingFitDialog(wx.Dialog):
     actionOverwrite = 0
     actionAddPostfix = 1
-    actionSkip = 1
+    actionSkip = 2
 
     def __init__(self, parent):
         super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE)
 
-        self.importActionsDict = {
-            ImportExistingFitDialog.actionOverwrite     : self.doActionOverwrite,
-            ImportExistingFitDialog.actionAddPostfix    : self.doActionAddPostfix,
-            ImportExistingFitDialog.actionSkip          : self.doActionSkip
-        }
-
+        # data START
         shipName = "Retribution"
         fitName = "Beam PVP"
         fitsNumber = 1
@@ -51,20 +46,30 @@ class ImportExistingFitDialog(wx.Dialog):
         #todo add tooltips. Explain why overwrite is disabled
         #todo on change the name check if it's a correct one
 
-        self.mainFrame = parent
-        mainSizer = wx.BoxSizer(wx.VERTICAL)
-
         self.fitActions = OrderedDict((
-            ("Overwrite", (ImportExistingFitDialog.actionOverwrite, None)),
-            ("Add postfix", (ImportExistingFitDialog.actionAddPostfix, None)),
+            ("Overwrite", (ImportExistingFitDialog.actionOverwrite, {"Hideable": True})),
+            ("Add postfix", (ImportExistingFitDialog.actionAddPostfix, {"TextCtrl": True})),
             ("Skip", (ImportExistingFitDialog.actionSkip, None)),
         ))
 
-        self.settings = SettingsProvider.getInstance().getSettings("pyfaImportAction", {"format": 0})
+        self.importActionsDict = {
+            ImportExistingFitDialog.actionOverwrite: self.doActionOverwrite,
+            ImportExistingFitDialog.actionAddPostfix: self.doActionAddPostfix,
+            ImportExistingFitDialog.actionSkip: self.doActionSkip
+        }
 
         mainText = "Fit for the '{}' with the name '{}'\n already exists".format(shipName, fitName)
         if fitsNumber > 1:
             mainText = "There are {} for '{}' with the name '{}'".format(fitsNumber, shipName, fitName)
+
+        # data END
+
+
+        self.settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction", {"format": 0})
+
+        # Layout creation
+        self.mainFrame = parent
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
 
         label = wx.StaticText(self, wx.ID_ANY, mainText, style = wx.ALIGN_CENTER)
         mainSizer.Add(label, 0, wx.EXPAND | wx.ALL, 10)
@@ -88,10 +93,10 @@ class ImportExistingFitDialog(wx.Dialog):
             radioSizer.Add(rdo, 0, wx.EXPAND | wx.ALL, 5)
 
             # In case we have more that one fit - we can't use 'Overwrite' option
-            if fitsNumber > 1 and formatName == "Overwrite":
+            if fitsNumber > 1 and formatOptions and formatOptions.get("Hideable"):
                 rdo.Hide()
 
-            if formatName == "Add postfix":
+            if formatOptions and formatOptions.get("TextCtrl"):
                 textSizer = wx.BoxSizer(wx.VERTICAL)
                 edit = wx.TextCtrl(self, wx.ID_ANY, "", wx.DefaultPosition, (150, -1))
                 textSizer.Add(edit, 0, wx.TOP | wx.BOTTOM, 3)
@@ -113,7 +118,7 @@ class ImportExistingFitDialog(wx.Dialog):
         # This always returns False, and when we're ready will EndModal()
         selectedItem = self.getSelected()
 
-        settings = SettingsProvider.getInstance().getSettings("pyfaImportAction")
+        settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction")
         settings["format"] = selectedItem
 
         def cb(text):
@@ -131,7 +136,7 @@ class ImportExistingFitDialog(wx.Dialog):
         self.Fit()
 
     def getSelected(self):
-        return self.fitActions
+        return self.fitAction
 
     def doActionOverwrite(self, callback):
         fit = getFit(self.mainFrame.getActiveFit())
