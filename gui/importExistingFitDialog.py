@@ -34,6 +34,8 @@ class ImportExistingFitDialog(wx.Dialog):
     actionAddPostfix = 1
     actionSkip = 2
 
+    applyToAllFitsText = "Apply to all fits"
+
     def __init__(self, parent):
         super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE)
 
@@ -65,8 +67,9 @@ class ImportExistingFitDialog(wx.Dialog):
         # data END
 
 
-        self.settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction", {"format": 0})
+        self.settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction", {"format": 0, "applyToAll": False})
 
+        #todo move sizers to one place
         # Layout creation
         self.mainFrame = parent
         mainSizer = wx.BoxSizer(wx.VERTICAL)
@@ -85,7 +88,7 @@ class ImportExistingFitDialog(wx.Dialog):
             else:
                 rdo = wx.RadioButton(self, wx.ID_ANY, formatName)
 
-            rdo.Bind(wx.EVT_RADIOBUTTON, self.selected)
+            rdo.Bind(wx.EVT_RADIOBUTTON, self.changeSelected)
             if self.settings['format'] == formatId:
                 rdo.SetValue(True)
                 self.fitAction = formatId
@@ -108,6 +111,17 @@ class ImportExistingFitDialog(wx.Dialog):
         if buttonSizer:
             mainSizer.Add(buttonSizer, 0, wx.EXPAND | wx.ALL, 5)
 
+        # Add checkbox for "apply to all fits"
+        # csizer = wx.BoxSizer(wx.VERTICAL)
+        checkbox = wx.CheckBox(self, -1, self.applyToAllFitsText)
+        checkbox.Bind(wx.EVT_CHECKBOX, self.changeApplyToAll)
+        checkbox.SetValue(self.settings['applyToAll'])
+
+        self.applyToAll = self.settings['applyToAll']
+        # csizer.Add(checkbox, 0, wx.EXPAND | wx.ALL, 3)
+
+        mainSizer.Add(checkbox, 0, wx.EXPAND | wx.ALL, 4)
+
         self.SetSizer(mainSizer)
         self.Fit()
         self.Center()
@@ -120,6 +134,7 @@ class ImportExistingFitDialog(wx.Dialog):
 
         settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction")
         settings["format"] = selectedItem
+        settings["applyToAll"] = self.applyToAll
 
         def cb(text):
             toClipboard(text)
@@ -129,7 +144,7 @@ class ImportExistingFitDialog(wx.Dialog):
 
         return False
 
-    def selected(self, event):
+    def changeSelected(self, event):
         obj = event.GetEventObject()
         formatName = obj.GetLabel()
         self.fitAction = self.fitActions[formatName][0]
@@ -137,6 +152,11 @@ class ImportExistingFitDialog(wx.Dialog):
 
     def getSelected(self):
         return self.fitAction
+
+    def changeApplyToAll(self, event):
+        obj = event.GetEventObject()
+        self.applyToAll = obj.Value
+
 
     def doActionOverwrite(self, callback):
         fit = getFit(self.mainFrame.getActiveFit())
