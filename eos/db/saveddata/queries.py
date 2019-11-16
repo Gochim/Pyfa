@@ -318,6 +318,37 @@ def countFitsWithShip(lookfor, ownerID=None, where=None, eager=None):
     return count
 
 
+def getFitWithShipAndName(shipID, name, ownerID, eager=None):
+    """
+    Returns the fit with the selected name and ship type
+    :param eager:
+    :param shipID:
+    :param name:
+    :param ownerID:
+    :return:
+    """
+
+    if ownerID is not None and not isinstance(ownerID, int):
+        raise TypeError("OwnerID must be integer")
+
+    if shipID is None or not isinstance(shipID, int):
+        raise TypeError("Ship ID must be integer")
+
+    if name is None or not isinstance(name, str):
+        raise TypeError("Name must be string")
+
+    filter = Fit.shipID == shipID
+    filter = and_(filter, Fit.name == name)
+    if ownerID is not None:
+        filter = and_(filter, Fit.ownerID == ownerID)
+
+    eager = processEager(eager)
+    with sd_lock:
+        fits = saveddata_session.query(Fit).options(*eager).filter(filter).all()
+
+    return fits
+
+
 def getFitList(eager=None):
     eager = processEager(eager)
     with sd_lock:
