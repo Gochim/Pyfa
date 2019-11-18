@@ -24,6 +24,7 @@ from collections import OrderedDict
 import wx
 
 from eos.db import getFit
+from eos import db
 from gui.utils.clipboard import toClipboard
 from service.port import Port
 from service.settings import SettingsProvider
@@ -36,17 +37,21 @@ class ImportExistingFitDialog(wx.Dialog):
 
     applyToAllFitsText = "Apply to all fits"
 
-    def __init__(self, parent):
-        super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE)
+    def __init__(self, parent=None, fits=None):
+        super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE, pos=wx.DefaultPosition)
+
+        # todo generate the value in postfix field to make it unique
+        # todo check if the new name is unique
+        # todo check that cancel in dialog actually calls a cancel in imports
+        # todo move sizers to one place
+        # todo add apply to all functionality
+
+        self.fits = fits
 
         # data START
-        shipName = "Retribution"
-        fitName = "Beam PVP"
-        fitsNumber = 1
-        #todo generate the value in postfix field to make it unique
-        #todo check if the new name is unique
-        #todo add tooltips. Explain why overwrite is disabled
-        #todo on change the name check if it's a correct one
+        shipName = fits[0].ship.name
+        fitName = fits[0].name
+        fitsNumber = len(fits)
 
         self.fitActions = OrderedDict((
             ("Overwrite", (ImportExistingFitDialog.actionOverwrite, {"Hideable": True})),
@@ -69,7 +74,6 @@ class ImportExistingFitDialog(wx.Dialog):
 
         self.settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction", {"format": 0, "applyToAll": False})
 
-        #todo move sizers to one place
         # Layout creation
         self.mainFrame = parent
         mainSizer = wx.BoxSizer(wx.VERTICAL)
@@ -101,8 +105,8 @@ class ImportExistingFitDialog(wx.Dialog):
 
             if formatOptions and formatOptions.get("TextCtrl"):
                 textSizer = wx.BoxSizer(wx.VERTICAL)
-                edit = wx.TextCtrl(self, wx.ID_ANY, "", wx.DefaultPosition, (150, -1))
-                textSizer.Add(edit, 0, wx.TOP | wx.BOTTOM, 3)
+                self.postFixEdit = wx.TextCtrl(self, wx.ID_ANY, "", wx.DefaultPosition, (150, -1))
+                textSizer.Add(self.postFixEdit, 0, wx.TOP | wx.BOTTOM, 3)
                 radioSizer.Add(textSizer, 0, wx.EXPAND | wx.LEFT, 20)
 
         mainSizer.Add(radioSizer, 0, wx.EXPAND | wx.LEFT, 20)
@@ -136,12 +140,11 @@ class ImportExistingFitDialog(wx.Dialog):
         settings["format"] = selectedItem
         settings["applyToAll"] = self.applyToAll
 
-        def cb(text):
-            toClipboard(text)
-            self.EndModal(wx.ID_OK)
+        def cb(result):
+            if result:
+                self.EndModal(wx.ID_OK)
 
         self.importActionsDict[selectedItem](callback=cb)
-
         return False
 
     def changeSelected(self, event):
@@ -160,12 +163,31 @@ class ImportExistingFitDialog(wx.Dialog):
 
     def doActionOverwrite(self, callback):
         fit = getFit(self.mainFrame.getActiveFit())
-        Port.exportEft(fit, None, callback)
+        Port.exportESI(fit, callback)
+        return callback(False)
 
     def doActionSkip(self, callback):
         fit = getFit(self.mainFrame.getActiveFit())
         Port.exportDna(fit, None, callback)
+        return callback(False)
 
     def doActionAddPostfix(self, callback):
-        fit = getFit(self.mainFrame.getActiveFit())
-        Port.exportESI(fit, callback)
+        def reselect():
+            self.postFixEdit.SetFocus()
+            return False
+
+        checkPassed = True
+
+        if len(self.postFixEdit.GetValue()) == 0:
+            checkPassed = reselect()
+        else:
+            existingFits = db.getFitWithShipAndName(
+                self.fits[0].shipID,
+                self.fits[0].name + self.postFixEdit.GetValue(),
+                None
+            )
+
+            if len(existingFits) > 0:
+                checkPassed = reselect
+
+        return callback(checkPassed)

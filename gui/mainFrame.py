@@ -69,7 +69,6 @@ from service.price import Price
 from service.settings import HTMLExportSettings, SettingsProvider
 from service.update import Update
 
-
 pyfalog = Logger(__name__)
 
 disableOverrideEditor = False
@@ -878,7 +877,7 @@ class MainFrame(wx.Frame):
 
     def backupCallback(self, info):
         if info == -1:
-            self.closeProgressDialog()
+            MainFrame.closeDialog(self.progressDialog)
         else:
             self.progressDialog.Update(info)
 
@@ -910,7 +909,7 @@ class MainFrame(wx.Frame):
         """
         _message = None
         if action & IPortUser.ID_ERROR:
-            self.closeProgressDialog()
+            MainFrame.closeDialog(self.progressDialog)
             _message = "Import Error" if action & IPortUser.PROCESS_IMPORT else "Export Error"
             with wx.MessageDialog(
                 self,
@@ -927,17 +926,21 @@ class MainFrame(wx.Frame):
             # update message
             elif action & IPortUser.ID_UPDATE:  # and data != self.progressDialog.message:
                 _message = data
+            elif action & IPortUser.PROCESS_START_AUX:
+                self.progressDialog.Hide()
+            elif action & IPortUser.PROCESS_AUX_DONE:
+                self.progressDialog.Show()
 
             if _message is not None:
                 self.__progress_flag, _unuse = self.progressDialog.Pulse(_message)
             else:
-                self.closeProgressDialog()
+                MainFrame.closeDialog(self.progressDialog)
                 if action & IPortUser.ID_DONE:
                     self._openAfterImport(data)
         # data is tuple(int, str)
         elif action & IPortUser.PROCESS_EXPORT:
             if action & IPortUser.ID_DONE:
-                self.closeProgressDialog()
+                MainFrame.closeDialog(self.progressDialog)
             else:
                 self.__progress_flag, _unuse = self.progressDialog.Update(data[0], data[1])
 
@@ -960,14 +963,15 @@ class MainFrame(wx.Frame):
                     ))
                 wx.PostEvent(self.shipBrowser, ImportSelected(fits=results, back=True))
 
-    def closeProgressDialog(self):
+    @staticmethod
+    def closeDialog(dialog):
         # Windows apparently handles ProgressDialogs differently. We can
         # simply Destroy it here, but for other platforms we must Close it
         if 'wxMSW' in wx.PlatformInfo:
-            self.progressDialog.Destroy()
+            dialog.Destroy()
         else:
-            self.progressDialog.EndModal(wx.ID_OK)
-            self.progressDialog.Close()
+            dialog.EndModal(wx.ID_OK)
+            dialog.Close()
 
     def importCharacter(self, event):
         """ Imports character XML file from EVE API """

@@ -49,6 +49,11 @@ class IPortUser(metaclass=ABCMeta):
     PROCESS_EXPORT = ID_PULSE << 5
     # means import process.
 
+    PROCESS_START_AUX = ID_PULSE << 6
+    # means show aux dialog while hiding main one first
+    PROCESS_AUX_DONE = ID_PULSE << 7
+    # means aux dialog finished and we need to show main again
+
     @abstractmethod
     def on_port_processing(self, action, data=None):
         """

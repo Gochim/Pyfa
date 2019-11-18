@@ -157,23 +157,45 @@ class Port:
             # IDs = []  # NOTE: what use for IDs?
             numFits = len(fit_list)
             for idx, fit in enumerate(fit_list):
-                # Set some more fit attributes and save
-                fit.character = sFit.character
-                fit.damagePattern = sFit.pattern
-                fit.targetProfile = sFit.targetProfile
-                if len(fit.implants) > 0:
-                    fit.implantLocation = ImplantLocation.FIT
-                else:
-                    useCharImplants = sFit.serviceFittingOptions["useCharacterImplantsByDefault"]
-                    fit.implantLocation = ImplantLocation.CHARACTER if useCharImplants else ImplantLocation.FIT
-                db.save(fit)
-                # IDs.append(fit.ID)
-                if iportuser:  # Pulse
-                    pyfalog.debug("Processing complete, saving fits to database: {0}/{1}", idx + 1, numFits)
-                    processing_notify(
-                        iportuser, IPortUser.PROCESS_IMPORT | IPortUser.ID_UPDATE,
-                        "Processing complete, saving fits to database\n(%d/%d) %s" % (idx + 1, numFits, fit.ship.name)
-                    )
+                # Marks if we should do something with the fit
+                processTheFit = True
+
+                # Check if we already have a fit with such name. And how many of them
+                existingFits = db.getFitWithShipAndName(fit.shipID, fit.name, None)
+                if len(existingFits) > 0:
+
+                    # Hide progress dialog
+                    processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_START_AUX, existingFits)
+                    if not hasattr(iportuser, "overwriteDialog"):
+                        from gui.importExistingFitDialog import ImportExistingFitDialog
+                        iportuser.overwriteDialog = ImportExistingFitDialog(parent=iportuser, fits=existingFits)
+                        test = iportuser.overwriteDialog.ShowModal()
+                        from wx.core import wx
+                        if test == wx.ID_OK:
+                            # todo Do naughty things to the fit according to selection
+                            processTheFit = True
+
+                        processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_AUX_DONE, None)
+
+                if processTheFit:
+                    # Set some more fit attributes and save
+                    fit.character = sFit.character
+                    fit.damagePattern = sFit.pattern
+                    fit.targetProfile = sFit.targetProfile
+                    if len(fit.implants) > 0:
+                        fit.implantLocation = ImplantLocation.FIT
+                    else:
+                        useCharImplants = sFit.serviceFittingOptions["useCharacterImplantsByDefault"]
+                        fit.implantLocation = ImplantLocation.CHARACTER if useCharImplants else ImplantLocation.FIT
+                    db.save(fit)
+                    # IDs.append(fit.ID)
+                    if iportuser:  # Pulse
+                        pyfalog.debug("Processing complete, saving fits to database: {0}/{1}", idx + 1, numFits)
+                        processing_notify(
+                            iportuser, IPortUser.PROCESS_IMPORT | IPortUser.ID_UPDATE,
+                                       "Processing complete, saving fits to database\n(%d/%d) %s" % (
+                                       idx + 1, numFits, fit.ship.name)
+                        )
 
         except UserCancelException:
             return False, "Processing has been canceled.\n"
