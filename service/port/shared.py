@@ -107,3 +107,9 @@ class ImportExistingFitContainer:
     action = None
     applyToAll = False
     threadEvent = None
+
+
+class ImportExistingDialogInputParams:
+    def __init__(self, fitList, resolveThreadEvent) -> None:
+        self.resolveThreadEvent = resolveThreadEvent
+        self.fitList = fitList

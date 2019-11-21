@@ -38,7 +38,7 @@ from service.port.eft import (
     isValidImplantImport, isValidBoosterImport)
 from service.port.esi import exportESI, importESI
 from service.port.multibuy import exportMultiBuy
-from service.port.shared import IPortUser, UserCancelException, processing_notify
+from service.port.shared import IPortUser, UserCancelException, processing_notify, ImportExistingDialogInputParams
 from service.port.shipstats import exportFitStats
 from service.port.xml import importXml, exportXml
 from service.port.muta import parseMutant
@@ -158,21 +158,33 @@ class Port:
             numFits = len(fit_list)
             for idx, fit in enumerate(fit_list):
                 # Marks if we should do something with the fit
-                processTheFit = True
+                saveTheFit = True
 
                 # Check if we already have a fit with such name. And how many of them
                 existingFits = db.getFitWithShipAndName(fit.shipID, fit.name, None)
                 if len(existingFits) > 0:
                     # Hide progress dialog
                     processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_HIDE_PROGRESS, None)
-                    processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_START_AUX, existingFits)
+                    params = ImportExistingDialogInputParams(fitList=existingFits, resolveThreadEvent=threading.Event())
+                    processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_START_AUX, params)
 
-                    iportuser.importExistingFitContainer.threadEvent.wait()
-                    processTheFit = True
+                    params.resolveThreadEvent.wait()
+
+                    action = iportuser.importExistingDialogContainer.action
+                    from gui.importExistingFitDialog import ImportExistingFitDialog
+                    if action == ImportExistingFitDialog.actionOverwrite:
+                        # todo execute overwrite
+                        pass
+                    elif action == ImportExistingFitDialog.actionSkip:
+                        saveTheFit = False
+                    elif action == ImportExistingFitDialog.actionAddPostfix:
+                        # change the name of the fit. We made sure it's unique in ImportExistingFitDialog
+                        # todo update the fit name
+                        pass
 
                     processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_SHOW_PROGRESS, None)
 
-                if processTheFit:
+                if saveTheFit:
                     # Set some more fit attributes and save
                     fit.character = sFit.character
                     fit.damagePattern = sFit.pattern
@@ -190,6 +202,14 @@ class Port:
                             iportuser, IPortUser.PROCESS_IMPORT | IPortUser.ID_UPDATE,
                                        "Processing complete, saving fits to database\n(%d/%d) %s" % (
                                        idx + 1, numFits, fit.ship.name)
+                        )
+                else:
+                    if iportuser:  # Pulse
+                        pyfalog.debug("Processing complete, skipping fit: {0}/{1}", idx + 1, numFits)
+                        processing_notify(
+                            iportuser, IPortUser.PROCESS_IMPORT | IPortUser.ID_UPDATE,
+                                       "Processing complete, skipping fit\n(%d/%d) %s" % (
+                                           idx + 1, numFits, fit.ship.name)
                         )
 
         except UserCancelException:
