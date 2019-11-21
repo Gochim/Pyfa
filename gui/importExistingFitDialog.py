@@ -37,16 +37,17 @@ class ImportExistingFitDialog(wx.Dialog):
 
     applyToAllFitsText = "Apply to all fits"
 
-    def __init__(self, parent=None, fits=None):
+    def __init__(self, parent, fits, resultContainer):
         super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE, pos=wx.DefaultPosition)
 
         # todo generate the value in postfix field to make it unique
-        # todo check if the new name is unique
         # todo check that cancel in dialog actually calls a cancel in imports
         # todo move sizers to one place
         # todo add apply to all functionality
+        # todo cover the case when user selected "overwrite" with one fit but then next overwrite is a dialog with > 1 fit and overwrite is hidden
 
         self.fits = fits
+        self.resultContainer = resultContainer
 
         # data START
         shipName = fits[0].ship.name
@@ -142,6 +143,7 @@ class ImportExistingFitDialog(wx.Dialog):
 
         def cb(result):
             if result:
+                self.resultContainer.threadEvent.set()
                 self.EndModal(wx.ID_OK)
 
         self.importActionsDict[selectedItem](callback=cb)
@@ -160,27 +162,27 @@ class ImportExistingFitDialog(wx.Dialog):
         obj = event.GetEventObject()
         self.applyToAll = obj.Value
 
-
     def doActionOverwrite(self, callback):
-        fit = getFit(self.mainFrame.getActiveFit())
-        Port.exportESI(fit, callback)
-        return callback(False)
+        self.resultContainer.action = ImportExistingFitDialog.actionOverwrite
+        self.resultContainer.applyToAll = self.applyToAll
+        return callback(True)
 
     def doActionSkip(self, callback):
-        fit = getFit(self.mainFrame.getActiveFit())
-        Port.exportDna(fit, None, callback)
-        return callback(False)
+        self.resultContainer.action = ImportExistingFitDialog.actionSkip
+        self.resultContainer.applyToAll = self.applyToAll
+        return callback(True)
 
     def doActionAddPostfix(self, callback):
-        def reselect():
+        def doReselect():
             self.postFixEdit.SetFocus()
             return False
 
         checkPassed = True
 
         if len(self.postFixEdit.GetValue()) == 0:
-            checkPassed = reselect()
+            checkPassed = doReselect()
         else:
+            # check if the fit exists
             existingFits = db.getFitWithShipAndName(
                 self.fits[0].shipID,
                 self.fits[0].name + self.postFixEdit.GetValue(),
@@ -188,6 +190,10 @@ class ImportExistingFitDialog(wx.Dialog):
             )
 
             if len(existingFits) > 0:
-                checkPassed = reselect
+                checkPassed = doReselect
+
+        if checkPassed:
+            self.resultContainer.action = ImportExistingFitDialog.actionAddPostfix
+            self.resultContainer.applyToAll = self.applyToAll
 
         return callback(checkPassed)

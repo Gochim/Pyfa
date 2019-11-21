@@ -50,9 +50,15 @@ class IPortUser(metaclass=ABCMeta):
     # means import process.
 
     PROCESS_START_AUX = ID_PULSE << 6
-    # means show aux dialog while hiding main one first
+    # means show aux dialog
     PROCESS_AUX_DONE = ID_PULSE << 7
-    # means aux dialog finished and we need to show main again
+    # means aux dialog finished
+
+    PROCESS_HIDE_PROGRESS = ID_PULSE << 8
+    # means hiding main progress dialog
+    PROCESS_SHOW_PROGRESS = ID_PULSE << 9
+    # means show main progress dialog
+
 
     @abstractmethod
     def on_port_processing(self, action, data=None):
@@ -94,3 +100,10 @@ def fetchItem(typeName, eagerCat=False):
         return item
     else:
         return None
+
+
+class ImportExistingFitContainer:
+    dialog = None
+    action = None
+    applyToAll = False
+    threadEvent = None

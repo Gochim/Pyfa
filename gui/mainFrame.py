@@ -50,6 +50,7 @@ from gui.chrome_tabs import ChromeNotebook
 from gui.copySelectDialog import CopySelectDialog
 from gui.devTools import DevTools
 from gui.esiFittings import EveFittings, ExportToEve, SsoCharacterMgmt
+from gui.importExistingFitDialog import ImportExistingFitDialog
 from gui.mainMenuBar import MainMenuBar
 from gui.marketBrowser import MarketBrowser
 from gui.multiSwitch import MultiSwitch
@@ -65,6 +66,7 @@ from service.character import Character
 from service.esi import Esi
 from service.fit import Fit
 from service.port import IPortUser, Port
+from service.port.shared import ImportExistingFitContainer
 from service.price import Price
 from service.settings import HTMLExportSettings, SettingsProvider
 from service.update import Update
@@ -926,16 +928,21 @@ class MainFrame(wx.Frame):
             # update message
             elif action & IPortUser.ID_UPDATE:  # and data != self.progressDialog.message:
                 _message = data
-            elif action & IPortUser.PROCESS_START_AUX:
+            elif action & IPortUser.PROCESS_HIDE_PROGRESS:
                 self.progressDialog.Hide()
-            elif action & IPortUser.PROCESS_AUX_DONE:
+            elif action & IPortUser.PROCESS_SHOW_PROGRESS:
                 self.progressDialog.Show()
+            elif action & IPortUser.PROCESS_START_AUX:
+                if not hasattr(self, "importExistingFitContainer"):
+                    self._createExistingFitContainer(parent=self, fits=data)
+                    self.importExistingFitContainer.dialog.ShowModal()
 
             if _message is not None:
                 self.__progress_flag, _unuse = self.progressDialog.Pulse(_message)
             else:
                 MainFrame.closeDialog(self.progressDialog)
                 if action & IPortUser.ID_DONE:
+                    self._destroyExistingFitContainer()
                     self._openAfterImport(data)
         # data is tuple(int, str)
         elif action & IPortUser.PROCESS_EXPORT:
@@ -943,6 +950,20 @@ class MainFrame(wx.Frame):
                 MainFrame.closeDialog(self.progressDialog)
             else:
                 self.__progress_flag, _unuse = self.progressDialog.Update(data[0], data[1])
+
+    def _createExistingFitContainer(self, parent, fits):
+        """
+        Creates a holder object that stores dialog and dialog's working result.
+        We need a separate holder object since the results are actually used in another thread
+        """
+        self.importExistingFitContainer = ImportExistingFitContainer()
+        self.importExistingFitContainer.threadEvent = threading.Event()
+        self.importExistingFitContainer.dialog = ImportExistingFitDialog(parent=parent, fits=fits, resultContainer=self.importExistingFitContainer)
+
+    def _destroyExistingFitContainer(self):
+        MainFrame.closeDialog(self.importExistingFitContainer.dialog)
+        del self.importExistingFitContainer
+
 
     def _openAfterImport(self, fits):
         if len(fits) > 0:

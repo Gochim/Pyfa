@@ -163,19 +163,14 @@ class Port:
                 # Check if we already have a fit with such name. And how many of them
                 existingFits = db.getFitWithShipAndName(fit.shipID, fit.name, None)
                 if len(existingFits) > 0:
-
                     # Hide progress dialog
+                    processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_HIDE_PROGRESS, None)
                     processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_START_AUX, existingFits)
-                    if not hasattr(iportuser, "overwriteDialog"):
-                        from gui.importExistingFitDialog import ImportExistingFitDialog
-                        iportuser.overwriteDialog = ImportExistingFitDialog(parent=iportuser, fits=existingFits)
-                        test = iportuser.overwriteDialog.ShowModal()
-                        from wx.core import wx
-                        if test == wx.ID_OK:
-                            # todo Do naughty things to the fit according to selection
-                            processTheFit = True
 
-                        processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_AUX_DONE, None)
+                    iportuser.importExistingFitContainer.threadEvent.wait()
+                    processTheFit = True
+
+                    processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_SHOW_PROGRESS, None)
 
                 if processTheFit:
                     # Set some more fit attributes and save
