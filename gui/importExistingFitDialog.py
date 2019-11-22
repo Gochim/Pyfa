@@ -19,14 +19,14 @@
 
 
 from collections import OrderedDict
-
 # noinspection PyPackageRequirements
+from typing import List
+
 import wx
 
-from eos.db import getFit
 from eos import db
-from gui.utils.clipboard import toClipboard
-from service.port import Port
+from gui.mainFrame import MainFrame
+from service.port.shared import ImportExistingFitContainer
 from service.settings import SettingsProvider
 
 
@@ -38,13 +38,14 @@ class ImportExistingFitDialog(wx.Dialog):
     applyToAllFitsText = "Apply to all fits"
 
     def __init__(self, parent, fits, resultContainer):
+        # type: (MainFrame, List, ImportExistingFitContainer) -> None
         super().__init__(parent, id=wx.ID_ANY, title="Fit collision", size=(-1, -1), style=wx.DEFAULT_DIALOG_STYLE, pos=wx.DefaultPosition)
 
-        # todo generate the value in postfix field to make it unique
         # todo check that cancel in dialog actually calls a cancel in imports
-        # todo move sizers to one place
         # todo add apply to all functionality
         # todo cover the case when user selected "overwrite" with one fit but then next overwrite is a dialog with > 1 fit and overwrite is hidden
+
+        # todo move sizers to one place
 
         self.fits = fits
         self.resultContainer = resultContainer
@@ -124,12 +125,33 @@ class ImportExistingFitDialog(wx.Dialog):
 
         self.applyToAll = self.settings['applyToAll']
         # csizer.Add(checkbox, 0, wx.EXPAND | wx.ALL, 3)
+        self.postFixEdit.ChangeValue(self._setUniquePostfix())
 
         mainSizer.Add(checkbox, 0, wx.EXPAND | wx.ALL, 4)
 
         self.SetSizer(mainSizer)
         self.Fit()
         self.Center()
+
+    def _setUniquePostfix(self):
+        """ Finds an index to make the fit name unique """
+        index = 2
+
+        while True:
+            existingFits = db.getFitWithShipAndName(
+                self.fits[0].shipID,
+                "{0}_{1}".format(self.fits[0].name, str(index)),
+                None
+            )
+
+            if len(existingFits) > 0:
+                index += 1
+            else:
+                break
+
+        return "_" + str(index)
+
+
 
     def Validate(self):
         # Since this dialog is shown through as ShowModal(),
@@ -195,5 +217,6 @@ class ImportExistingFitDialog(wx.Dialog):
         if checkPassed:
             self.resultContainer.action = ImportExistingFitDialog.actionAddPostfix
             self.resultContainer.applyToAll = self.applyToAll
+            self.resultContainer.postFix = self.postFixEdit.GetValue()
 
         return callback(checkPassed)

@@ -168,18 +168,21 @@ class Port:
                     params = ImportExistingDialogInputParams(fitList=existingFits, resolveThreadEvent=threading.Event())
                     processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_START_AUX, params)
 
+                    # wait for importExistingFitDialog finish it's work
                     params.resolveThreadEvent.wait()
 
+                    # apply actions depending on the dialog choice
                     action = iportuser.importExistingDialogContainer.action
                     from gui.importExistingFitDialog import ImportExistingFitDialog
                     if action == ImportExistingFitDialog.actionOverwrite:
+                        existingFit = db.getFitWithShipAndName(fit.shipID, fit.name, None)
                         # todo execute overwrite
                         pass
                     elif action == ImportExistingFitDialog.actionSkip:
                         saveTheFit = False
                     elif action == ImportExistingFitDialog.actionAddPostfix:
                         # change the name of the fit. We made sure it's unique in ImportExistingFitDialog
-                        # todo update the fit name
+                        fit.name += iportuser.importExistingDialogContainer.postfix
                         pass
 
                     processing_notify(iportuser, IPortUser.PROCESS_IMPORT | IPortUser.PROCESS_SHOW_PROGRESS, None)

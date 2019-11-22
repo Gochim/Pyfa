@@ -106,6 +106,7 @@ class ImportExistingFitContainer:
     dialog = None
     action = None
     applyToAll = False
+    postfix = None
     threadEvent = None
 
 
