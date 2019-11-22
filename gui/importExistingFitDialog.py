@@ -20,12 +20,9 @@
 
 from collections import OrderedDict
 # noinspection PyPackageRequirements
-from typing import List
-
 import wx
 
 from eos import db
-from gui.mainFrame import MainFrame
 from service.port.shared import ImportExistingFitContainer
 from service.settings import SettingsProvider
 
@@ -72,7 +69,6 @@ class ImportExistingFitDialog(wx.Dialog):
             mainText = "There are {} for '{}' with the name '{}'".format(fitsNumber, shipName, fitName)
 
         # data END
-
 
         self.settings = SettingsProvider.getInstance().getSettings("pyfaImportCollisionAction", {"format": 0, "applyToAll": False})
 
